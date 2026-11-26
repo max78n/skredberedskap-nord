@@ -35,7 +35,7 @@ jobs:
           node kilde/bygg.js kilde site
           echo "$(TZ=Europe/Oslo date '+%F %H:%M') bygd" > site/sist_bygd.txt
 
-      - name: Første kjøring i døgnet: lagre dato (holder de planlagte kjøringene aktive)
+      - name: 'Første kjøring i døgnet – lagre dato (holder de planlagte kjøringene aktive)'
         run: |
           I_DAG=$(TZ=Europe/Oslo date +%F)
           if [ "$(cut -c1-10 sist_kjort.txt 2>/dev/null)" != "$I_DAG" ]; then
