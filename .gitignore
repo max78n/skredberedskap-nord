@@ -1,0 +1,5 @@
+site/index.html
+site/brief.md
+site/sist_bygd.txt
+__pycache__/
+*.pkl

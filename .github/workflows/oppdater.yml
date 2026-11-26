@@ -1,0 +1,65 @@
+# Bygger beredskapssida (index.html med innebygd data) og publiserer på GitHub Pages.
+# Sida henter selv ferske data fra NVE/MET når den åpnes; innebygd data er reserve hvis hentingen feiler.
+# GitHub bruker UTC og kan forsinke eller hoppe over planlagte kjøringer.
+name: Oppdater beredskap
+
+on:
+  schedule:
+    - cron: '17 5-20 * * *'   # hver time kl. xx:17, 06:17–21:17 norsk vintertid
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: oppdater
+  cancel-in-progress: false
+
+jobs:
+  bygg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Bygg sida
+        run: |
+          node kilde/bygg.js kilde site
+          echo "$(TZ=Europe/Oslo date '+%F %H:%M') bygd" > site/sist_bygd.txt
+
+      - name: Første kjøring i døgnet: lagre dato (holder de planlagte kjøringene aktive)
+        run: |
+          I_DAG=$(TZ=Europe/Oslo date +%F)
+          if [ "$(cut -c1-10 sist_kjort.txt 2>/dev/null)" != "$I_DAG" ]; then
+            echo "$I_DAG $(date -u +%H:%MZ) ok" > sist_kjort.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+            git add sist_kjort.txt
+            git commit -q -m "Daglig kjøring $I_DAG [skip ci]" || true
+            git pull --rebase -q origin main || true
+            git push || true
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  publiser:
+    needs: bygg
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
